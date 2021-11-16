@@ -164,7 +164,6 @@ impl FromTime for HumanTime {
 }
 
 impl HumanTime {
-    const DAYS_IN_YEAR: u64 = 365;
     const DAYS_IN_MONTH: u64 = 30;
 
     /// Create `HumanTime` object that corresponds to the current point in time.
