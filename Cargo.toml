@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 keywords = ["time", "humanize", "display"]
-categories = ["library", "utility"]
+categories = ["date-and-time", "value-formatting"]
 authors = ["Patrick Haller <patrickhaller40@googlemail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
