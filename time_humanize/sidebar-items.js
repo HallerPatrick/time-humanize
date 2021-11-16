@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Accuracy","The accuracy of the representation"],["Tense","Indicates the time of the period in relation to the time of the utterance"]],"struct":[["HumanTime","`Duration` wrapper that helps expressing the duration in human languages"]],"trait":[["FromTime",""]]});
