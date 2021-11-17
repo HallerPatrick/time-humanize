@@ -6,6 +6,9 @@ use std::time::{Duration, SystemTime};
 
 use std::convert::TryInto;
 
+#[cfg(feature = "time")]
+use time::OffsetDateTime;
+
 /// Indicates the time of the period in relation to the time of the utterance
 #[derive(Clone, Copy, Debug, Hash, PartialEq, PartialOrd)]
 pub enum Tense {
@@ -124,17 +127,6 @@ pub struct HumanTime {
     is_positive: bool,
 }
 
-// /// Trait to instantiate `HumanTime` for different time metrics
-// trait FromTime {
-//     fn from_seconds(seconds: i64) -> HumanTime;
-//     fn from_minutes(minutes: i64) -> HumanTime;
-//     fn from_hours(hours: i64) -> HumanTime;
-//     fn from_days(days: i64) -> HumanTime;
-//     fn from_weeks(weeks: i64) -> HumanTime;
-//     fn from_months(months: i64) -> HumanTime;
-//     fn from_years(years: i64) -> HumanTime;
-// }
-
 impl HumanTime {
     const DAYS_IN_MONTH: u64 = 30;
 
@@ -173,21 +165,36 @@ impl HumanTime {
         }
     }
 
-    /// Return `HumanTime` for given seconds from epoch
-    pub fn duration_since_timestamp(timestamp: u64) -> HumanTime {
+    /// Return `HumanTime` for given seconds from epoch start
+    pub fn from_duration_since_timestamp(timestamp: u64) -> HumanTime {
         let since_epoch_duration = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
 
         let ts = Duration::from_secs(timestamp);
 
-        let duration = ts - since_epoch_duration;
+        let duration = since_epoch_duration - ts;
 
         // Can something happen when casting from unsigned to signed?
         let duration = duration.as_secs() as i64;
 
         // Cause we calculate since a timestamp till today, we negate the duration
         HumanTime::from(-duration)
+    }
+
+    /// Returns the unix timestamp till Duration
+    pub fn to_unix_timestamp(&self) -> i64 {
+        let since_epoch_duration = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
+
+        let duration = if self.is_positive {
+            since_epoch_duration + self.duration
+        } else {
+            since_epoch_duration - self.duration
+        };
+
+        duration.as_secs() as i64
     }
 
     fn tense(self, accuracy: Accuracy) -> Tense {
@@ -466,7 +473,14 @@ impl Sub for HumanTime {
     }
 }
 
-// TODO: From SystemTime?
+impl From<SystemTime> for HumanTime {
+    fn from(st: SystemTime) -> Self {
+        match st.duration_since(SystemTime::now()) {
+            Ok(duration) => HumanTime::from(-(duration.as_secs() as i64)),
+            Err(err) => HumanTime::from(-(err.duration().as_secs() as i64)),
+        }
+    }
+}
 
 impl From<i64> for HumanTime {
     /// Performs conversion from `i64` to `HumanTime`, from seconds.
@@ -474,6 +488,17 @@ impl From<i64> for HumanTime {
         Self {
             duration: Duration::from_secs(duration_in_sec.unsigned_abs()),
             is_positive: duration_in_sec >= 0,
+        }
+    }
+}
+
+#[cfg(feature = "time")]
+impl Into<OffsetDateTime> for HumanTime {
+    fn into(self) -> OffsetDateTime {
+        if self.is_positive {
+            OffsetDateTime::UNIX_EPOCH + self.duration
+        } else {
+            OffsetDateTime::UNIX_EPOCH - self.duration
         }
     }
 }
@@ -493,6 +518,30 @@ impl Humanize for Duration {
 mod tests {
 
     use super::*;
+    use std::time::SystemTime;
+
+    #[cfg(feature = "time")]
+    #[test]
+    fn test_into_offset_date_time() {
+        let dt: OffsetDateTime = HumanTime::from(SystemTime::UNIX_EPOCH).into();
+        let ht = HumanTime::from(SystemTime::now());
+
+        // Left is actual unix timestamp, right is duration till timestamp therefore negate
+        assert_eq!(dt.unix_timestamp(), -ht.to_unix_timestamp())
+    }
+
+    #[test]
+    fn test_duration_from_system_time() {
+        let ht = HumanTime::from(SystemTime::now());
+        assert_eq!("now", format!("{}", ht))
+    }
+
+    #[test]
+    fn test_duration_from_system_time_since_epoch() {
+        let ht = HumanTime::from(SystemTime::UNIX_EPOCH);
+        // Well this will work for one year
+        assert_eq!("51 years ago", format!("{}", ht))
+    }
 
     #[test]
     fn test_add_human_time() {

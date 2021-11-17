@@ -4,7 +4,7 @@ description = "Display time in a human readable manner."
 readme = "README.md"
 repository = "https://github.com/HallerPatrick/time-humanize"
 homepage = "https://hallerpatrick.github.io/time-humanize/time_humanize/"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 keywords = ["time", "humanize", "display"]
@@ -13,4 +13,8 @@ authors = ["Patrick Haller <patrickhaller40@googlemail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
+[features]
+
 [dependencies]
+time = { version = "0.3.5", features = ["formatting"], optional = true}
