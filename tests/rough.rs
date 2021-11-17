@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod duration {
     use std::time::Duration;
-    use time_humanize::{FromTime, HumanTime};
+    use time_humanize::HumanTime;
 
     #[test]
     fn now() {

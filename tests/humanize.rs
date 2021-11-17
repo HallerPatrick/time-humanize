@@ -2,7 +2,7 @@ extern crate time_humanize;
 
 #[cfg(test)]
 mod duration {
-    use time_humanize::{FromTime, HumanTime};
+    use time_humanize::HumanTime;
 
     #[test]
     fn now() {

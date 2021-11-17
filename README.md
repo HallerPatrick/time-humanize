@@ -9,16 +9,11 @@ now has 0 dependencies.
 # Usage
 
 ```rust
-
 use std::time::Duration;
-
 use time_humanize::HumanTime;
 
 
 let duration = Duration::from_secs(60);
-
 let human_time = HumanTime::from(duration);
-
 println!("{}", human_time);
-
 ```

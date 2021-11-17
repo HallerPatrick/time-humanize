@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 use std::cmp::max;
 use std::fmt;
-use std::time::Duration;
+use std::ops::{Add, Sub};
+use std::time::{Duration, SystemTime};
 
 use std::convert::TryInto;
 
@@ -123,45 +124,16 @@ pub struct HumanTime {
     is_positive: bool,
 }
 
-pub trait FromTime {
-    fn from_seconds(seconds: i64) -> HumanTime;
-    fn from_minutes(minutes: i64) -> HumanTime;
-    fn from_hours(hours: i64) -> HumanTime;
-    fn from_days(days: i64) -> HumanTime;
-    fn from_weeks(weeks: i64) -> HumanTime;
-    fn from_months(months: i64) -> HumanTime;
-    fn from_years(years: i64) -> HumanTime;
-}
-
-impl FromTime for HumanTime {
-    fn from_seconds(seconds: i64) -> HumanTime {
-        HumanTime::from(seconds)
-    }
-
-    fn from_minutes(minutes: i64) -> HumanTime {
-        HumanTime::from(minutes * S_MINUTE as i64)
-    }
-
-    fn from_hours(hours: i64) -> HumanTime {
-        HumanTime::from(hours * S_HOUR as i64)
-    }
-
-    fn from_days(days: i64) -> HumanTime {
-        HumanTime::from(days * S_DAY as i64)
-    }
-
-    fn from_weeks(weeks: i64) -> HumanTime {
-        HumanTime::from(weeks * S_WEEK as i64)
-    }
-
-    fn from_months(months: i64) -> HumanTime {
-        HumanTime::from(months * S_MONTH as i64)
-    }
-
-    fn from_years(years: i64) -> HumanTime {
-        HumanTime::from(years * S_YEAR as i64)
-    }
-}
+// /// Trait to instantiate `HumanTime` for different time metrics
+// trait FromTime {
+//     fn from_seconds(seconds: i64) -> HumanTime;
+//     fn from_minutes(minutes: i64) -> HumanTime;
+//     fn from_hours(hours: i64) -> HumanTime;
+//     fn from_days(days: i64) -> HumanTime;
+//     fn from_weeks(weeks: i64) -> HumanTime;
+//     fn from_months(months: i64) -> HumanTime;
+//     fn from_years(years: i64) -> HumanTime;
+// }
 
 impl HumanTime {
     const DAYS_IN_MONTH: u64 = 30;
@@ -199,6 +171,23 @@ impl HumanTime {
             Tense::Future => format!("in {}", text),
             Tense::Present => text.into_owned(),
         }
+    }
+
+    /// Return `HumanTime` for given seconds from epoch
+    pub fn duration_since_timestamp(timestamp: u64) -> HumanTime {
+        let since_epoch_duration = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
+
+        let ts = Duration::from_secs(timestamp);
+
+        let duration = ts - since_epoch_duration;
+
+        // Can something happen when casting from unsigned to signed?
+        let duration = duration.as_secs() as i64;
+
+        // Cause we calculate since a timestamp till today, we negate the duration
+        HumanTime::from(-duration)
     }
 
     fn tense(self, accuracy: Accuracy) -> Tense {
@@ -296,9 +285,7 @@ impl HumanTime {
 
     /// Split this `HumanTime` into number of whole years and the reminder
     fn split_years(self) -> (Option<u64>, Self) {
-        // 13 / 365 = 0. ...
         let years = self.duration.as_secs() / S_YEAR;
-
         let reminder = self.duration - Duration::new(years * S_YEAR, 0);
         Self::normalize_split(years, reminder)
     }
@@ -382,13 +369,62 @@ impl HumanTime {
         )
     }
 
+    /// Check if `HumanTime` duration is zero
     pub fn is_zero(self) -> bool {
         self.duration.is_zero()
     }
 
+    /// Return a string represenation for a given `Accuracy`
     fn locale_en(&self, accuracy: Accuracy) -> String {
         let tense = self.tense(accuracy);
         self.to_text_en(accuracy, tense)
+    }
+
+    /// Return duration as seconds, can be negative
+    fn as_secs(&self) -> i64 {
+        if self.is_positive {
+            self.duration.as_secs() as i64
+        } else {
+            -(self.duration.as_secs() as i64)
+        }
+    }
+}
+
+/// Instantiate `HumanTime` from different time metrics
+impl HumanTime {
+    /// Instantiate `HumanTime` for given seconds
+    pub fn from_seconds(seconds: i64) -> HumanTime {
+        HumanTime::from(seconds)
+    }
+
+    /// Instantiate `HumanTime` for given minutes
+    pub fn from_minutes(minutes: i64) -> HumanTime {
+        HumanTime::from(minutes * S_MINUTE as i64)
+    }
+
+    /// Instantiate `HumanTime` for given hours
+    pub fn from_hours(hours: i64) -> HumanTime {
+        HumanTime::from(hours * S_HOUR as i64)
+    }
+
+    /// Instantiate `HumanTime` for given days
+    pub fn from_days(days: i64) -> HumanTime {
+        HumanTime::from(days * S_DAY as i64)
+    }
+
+    /// Instantiate `HumanTime` for given weeks
+    pub fn from_weeks(weeks: i64) -> HumanTime {
+        HumanTime::from(weeks * S_WEEK as i64)
+    }
+
+    /// Instantiate `HumanTime` for given months
+    pub fn from_months(months: i64) -> HumanTime {
+        HumanTime::from(months * S_MONTH as i64)
+    }
+
+    /// Instantiate `HumanTime` for given years
+    pub fn from_years(years: i64) -> HumanTime {
+        HumanTime::from(years * S_YEAR as i64)
     }
 }
 
@@ -405,6 +441,7 @@ impl fmt::Display for HumanTime {
 }
 
 impl From<Duration> for HumanTime {
+    /// Create `HumanTime` from `Duration`
     fn from(duration: Duration) -> Self {
         Self {
             duration,
@@ -413,32 +450,36 @@ impl From<Duration> for HumanTime {
     }
 }
 
+impl Add for HumanTime {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        HumanTime::from(self.as_secs() + rhs.as_secs())
+    }
+}
+
+impl Sub for HumanTime {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self {
+        HumanTime::from(self.as_secs() - rhs.as_secs())
+    }
+}
+
+// TODO: From SystemTime?
+
 impl From<i64> for HumanTime {
     /// Performs conversion from `i64` to `HumanTime`, from seconds.
     fn from(duration_in_sec: i64) -> Self {
         Self {
             duration: Duration::from_secs(duration_in_sec.unsigned_abs()),
-            is_positive: duration_in_sec > 0,
+            is_positive: duration_in_sec >= 0,
         }
     }
 }
 
-// impl<TZ> From<DateTime<TZ>> for HumanTime
-// where
-//     TZ: TimeZone,
-// {
-//     fn from(dt: DateTime<TZ>) -> Self {
-//         dt.signed_duration_since(Utc::now()).into()
-//     }
-// }
-
-// impl From<SystemTime> for HumanTime {
-//     fn from(st: SystemTime) -> Self {
-//         DateTime::<Utc>::from(st).into()
-//     }
-// }
-
-trait Humanize {
+/// Display `Duration` as human readable time
+pub trait Humanize {
     fn humanize(&self) -> String;
 }
 
@@ -448,8 +489,48 @@ impl Humanize for Duration {
     }
 }
 
-// impl Humanize for SystemTime {
-//     fn humanize(&self) -> String {
-//         HumanTime::from(*self).to_string()
-//     }
-// }
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_add_human_time() {
+        let ht1 = HumanTime::from_seconds(30);
+        let ht2 = HumanTime::from_seconds(30);
+
+        let result = ht1 + ht2;
+        assert_eq!(result.duration.as_secs(), 60);
+        assert!(result.is_positive);
+    }
+
+    #[test]
+    fn test_add_human_time_neg() {
+        let ht1 = HumanTime::from_seconds(30);
+        let ht2 = HumanTime::from_seconds(-40);
+
+        let result = ht1 + ht2;
+        assert_eq!(result.duration.as_secs(), 10);
+        assert!(!result.is_positive);
+    }
+
+    #[test]
+    fn test_sub_human_time() {
+        let ht1 = HumanTime::from_seconds(30);
+        let ht2 = HumanTime::from_seconds(30);
+
+        let result = ht1 - ht2;
+        assert_eq!(result.duration.as_secs(), 0);
+        assert!(result.is_positive);
+    }
+
+    #[test]
+    fn test_sub_human_time_neg() {
+        let ht1 = HumanTime::from_seconds(30);
+        let ht2 = HumanTime::from_seconds(-40);
+
+        let result = ht1 + ht2;
+        assert_eq!(result.duration.as_secs(), 10);
+        assert!(!result.is_positive);
+    }
+}
